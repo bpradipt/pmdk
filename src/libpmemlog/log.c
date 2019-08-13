@@ -453,6 +453,71 @@ log_persist(PMEMlogpool *plp, uint64_t new_write_offset)
 }
 
 /*
+ * pmemlog_append_at_offset -- add data to a log memory pool at a particular offset from start
+ */
+int
+pmemlog_append_at_offset(PMEMlogpool *plp, const void *buf, size_t count, unsigned long long offset)
+{
+	int ret = 0;
+
+	LOG(3, "plp %p buf %p count %zu", plp, buf, count);
+
+	if (plp->rdonly) {
+		ERR("can't append to read-only log");
+		errno = EROFS;
+		return -1;
+	}
+
+	util_rwlock_wrlock(plp->rwlockp);
+
+	/* get the current values */
+	uint64_t end_offset = le64toh(plp->end_offset);
+	uint64_t write_offset = le64toh(plp->start_offset + (uint64_t)offset);
+
+	if (write_offset >= end_offset) {
+		/* no space left */
+		errno = ENOSPC;
+		ERR("!pmemlog_append");
+		ret = -1;
+		goto end;
+	}
+
+	/* make sure we don't write past the available space */
+	if (count > (end_offset - write_offset)) {
+		errno = ENOSPC;
+		ERR("!pmemlog_append");
+		ret = -1;
+		goto end;
+	}
+
+	char *data = plp->addr;
+
+	/*
+	 * unprotect the log space range, where the new data will be stored
+	 * (debug version only)
+	 */
+	RANGE_RW(&data[write_offset], count, plp->is_dev_dax);
+
+	if (plp->is_pmem)
+		pmem_memcpy_nodrain(&data[write_offset], buf, count);
+	else
+		memcpy(&data[write_offset], buf, count);
+
+	/* protect the log space range (debug version only) */
+	RANGE_RO(&data[write_offset], count, plp->is_dev_dax);
+
+	write_offset += count;
+
+	/* persist the data and the metadata */
+	log_persist(plp, write_offset);
+
+end:
+	util_rwlock_unlock(plp->rwlockp);
+
+	return ret;
+}
+
+/*
  * pmemlog_append -- add data to a log memory pool
  */
 int

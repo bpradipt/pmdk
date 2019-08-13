@@ -137,6 +137,7 @@ void pmemlog_close(PMEMlogpool *plp);
 size_t pmemlog_nbyte(PMEMlogpool *plp);
 int pmemlog_append(PMEMlogpool *plp, const void *buf, size_t count);
 int pmemlog_appendv(PMEMlogpool *plp, const struct iovec *iov, int iovcnt);
+int pmemlog_append_at_offset(PMEMlogpool *plp, const void *buf, size_t count, unsigned long long offset);
 long long pmemlog_tell(PMEMlogpool *plp);
 void pmemlog_rewind(PMEMlogpool *plp);
 void pmemlog_walk(PMEMlogpool *plp, size_t chunksize,

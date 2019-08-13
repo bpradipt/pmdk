@@ -46,6 +46,7 @@ LIBPMEMLOG_1.0 {
 		pmemlog_check;
 		pmemlog_nbyte;
 		pmemlog_append;
+		pmemlog_append_at_offset;
 		pmemlog_appendv;
 		pmemlog_tell;
 		pmemlog_rewind;
